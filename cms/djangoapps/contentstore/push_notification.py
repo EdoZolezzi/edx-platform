@@ -47,17 +47,36 @@ def send_push_course_update(course_key_string, course_subscription_id, course_di
                 settings.PARSE_KEYS["APPLICATION_ID"],
                 settings.PARSE_KEYS["REST_API_KEY"],
             )
+            push_payload = {
+                "action": "course.announcement",
+                "notification-id": unicode(uuid4()),
+
+                "course-id": course_key_string,
+                "course-name": course_display_name,
+            }
+            push_channels = [course_subscription_id]
+
+            # Push to all Android devices
             Push.alert(
-                data={
-                    "action": "course.announcement",
-                    "notification-id": unicode(uuid4()),
-
-                    "course-id": course_key_string,
-                    "course-name": course_display_name,
-
-                    "content-available": "1",   # for iOS only
-                },
-                channels=[course_subscription_id],
+                data=push_payload,
+                channels=push_channels,
+                where={"deviceType": "android"}
             )
+
+            # Push to all iOS devices
+            # With additional payload so that
+            # 1. The push is displayed automatically
+            # 2. The app gets it even in the background.
+            # See http://stackoverflow.com/questions/19239737/silent-push-notification-in-ios-7-does-not-work
+            push_payload.update({
+                "alert": "",
+                "content-available": 1
+            })
+            Push.alert(
+                data=push_payload,
+                channels=push_channels,
+                where={"deviceType": "ios"}
+            )
+
         except ParseError as error:
             log_exception(error.message)
